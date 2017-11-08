@@ -5,8 +5,10 @@ from itertools import combinations
 import numpy as np
 from joblib import Parallel, delayed
 import datetime
+import sys
 
-book = 'Westgate'
+book = sys.argv[1]
+min_projection = int(sys.argv[2])
 
 base_page = 'http://www.espn.com/nba/lines'
 get_page = urllib2.urlopen(base_page)
@@ -112,7 +114,7 @@ df['Percent of Total'] = df['FPPG'] / df['Team Total']
 df['Projected Score'] = pd.DataFrame.from_dict(team_dict, orient='index')
 df['Projection'] = df['Percent of Total'] * df['Projected Score']
 df = df.reset_index().set_index('Nickname')
-df = df[df['Projection'] > 10]
+df = df[df['Projection'] > min_projection]
 
 all_plyr_dict = df.to_dict(orient='index')
 position_dict = df.groupby(['Position']).apply(lambda x: x.to_dict(orient='index'))
@@ -137,7 +139,6 @@ combos = {'PG': 2, 'SG': 2, 'SF': 2, 'PF': 2, 'C': 1}
 def create_combo_dictionaries(combo_args):
 	position = combo_args[0]
 	count = combo_args[1]
-	print (combo_args)
 	if position == 'PG': 
 		for combo in combinations(position_dict[position], count):
 			projection = add_func(position, combo, 'Projection')
@@ -253,6 +254,7 @@ def main():
 			total_dict[key]['players'] = []
 			total_dict[key]['projection'] = y[key]['projection']
 
+	print len(total_dict)
         for x in total_dict.keys():
                 for plyr_tuple in x:
                         total_dict[x]['players'] += list(plyr_tuple)
