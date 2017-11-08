@@ -112,7 +112,7 @@ df['Percent of Total'] = df['FPPG'] / df['Team Total']
 df['Projected Score'] = pd.DataFrame.from_dict(team_dict, orient='index')
 df['Projection'] = df['Percent of Total'] * df['Projected Score']
 df = df.reset_index().set_index('Nickname')
-df = df[df['Projection'] > 1]
+df = df[df['Projection'] > 10]
 
 all_plyr_dict = df.to_dict(orient='index')
 position_dict = df.groupby(['Position']).apply(lambda x: x.to_dict(orient='index'))
@@ -202,8 +202,33 @@ def total_lineup_all(combo, key):
 		position_dict['PF'][pf[0]][key] + \
 		position_dict['PF'][pf[1]][key], 2)
 
+def create_total_dict(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_clean, pf_dict_clean):
+        return {(c_dict_clean[c]['players'], \
+                        pg_dict_clean[pg]['players'], \
+                        sg_dict_clean[sg]['players'], \
+                        sf_dict_clean[sf]['players'], \
+                        pf_dict_clean[pf]['players']): \
+                {'salary': total_lineup_all((c_dict_clean[c]['players'], \
+                                pg_dict_clean[pg]['players'], \
+                                sg_dict_clean[sg]['players'], \
+                                sf_dict_clean[sf]['players'], \
+                                pf_dict_clean[pf]['players']), 'Salary'),\
+                 'projection': total_lineup_all((c_dict_clean[c]['players'], \
+                                pg_dict_clean[pg]['players'], \
+                                sg_dict_clean[sg]['players'], \
+                                sf_dict_clean[sf]['players'], \
+                                pf_dict_clean[pf]['players']), 'Projection')} \
+                for pg in pg_dict_clean.keys() \
+                for sg in sg_dict_clean.keys() \
+                for sf in sf_dict_clean.keys() \
+                for pf in pf_dict_clean.keys() \
+                if 59500 < total_lineup_all((c_dict_clean[c]['players'], \
+                                        pg_dict_clean[pg]['players'], \
+                                        sg_dict_clean[sg]['players'], \
+                                        sf_dict_clean[sf]['players'], \
+                                        pf_dict_clean[pf]['players']), 'Salary') <= 60000}
+
 def main():
-        start_time = datetime.datetime.now()
 	for i in combos.items():
 		create_combo_dictionaries(i)
 
@@ -212,41 +237,32 @@ def main():
         sf_dict_clean = clean_dict(sf_dict)
         pf_dict_clean = clean_dict(pf_dict)
         c_dict_clean = clean_dict(c_dict)
-	print (len(pg_dict_clean), len(sg_dict_clean), len(sf_dict_clean), len(pf_dict_clean), len(c_dict_clean))
-        total_dict = {(c_dict_clean[c]['players'], \
-			pg_dict_clean[pg]['players'], \
-			sg_dict_clean[sg]['players'], \
-			sf_dict_clean[sf]['players'], \
-			pf_dict_clean[pf]['players']): \
-                {'salary': total_lineup_all((c_dict_clean[c]['players'], \
-                                pg_dict_clean[pg]['players'], \
-				sg_dict_clean[sg]['players'], \
-				sf_dict_clean[sf]['players'], \
-                                pf_dict_clean[pf]['players']), 'Salary'),\
-                 'projection': total_lineup_all((c_dict_clean[c]['players'], \
-                                pg_dict_clean[pg]['players'], \
-				sg_dict_clean[sg]['players'], \
-				sf_dict_clean[sf]['players'], \
-                                pf_dict_clean[pf]['players']), 'Projection')} \
-                for c in c_dict_clean.keys() \
-                for pg in pg_dict_clean.keys() \
-                for sg in sg_dict_clean.keys() \
-                for sf in sf_dict_clean.keys() \
-                for pf in pf_dict_clean.keys() \
-                if 59500 < total_lineup_all((c_dict_clean[c]['players'], \
-					pg_dict_clean[pg]['players'], \
-					sg_dict_clean[sg]['players'], \
-					sf_dict_clean[sf]['players'], \
-					pf_dict_clean[pf]['players']), 'Salary') <= 60000}
-	print ('total_dict', len(total_dict))
+
+	dict_parameters = [c_dict_clean,
+				pg_dict_clean,
+				sg_dict_clean,
+				sf_dict_clean,
+				pf_dict_clean]
+				
+	c_list = [(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_clean, pf_dict_clean) for c in c_dict_clean.keys()]
+	results = Parallel(n_jobs=-1)(delayed(create_total_dict)(*i) for i in c_list)
+	total_dict = {}
+	for y in results:
+		for key in y.keys():
+			total_dict[key] = {} 
+			total_dict[key]['players'] = []
+			total_dict[key]['projection'] = y[key]['projection']
+
         for x in total_dict.keys():
-                total_dict[x]['players'] = []
                 for plyr_tuple in x:
                         total_dict[x]['players'] += list(plyr_tuple)
+
         total_dict = {y['projection']: y['players'] for x,y in total_dict.items()}
         df = pd.DataFrame.from_dict(total_dict, orient='index').sort_index(ascending=False)
 	return df
 
 if __name__=="__main__":
+        start_time = datetime.datetime.now()
 	df = main()
 	print (df.head(15))
+	print (datetime.datetime.now() - start_time)
