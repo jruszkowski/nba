@@ -6,6 +6,7 @@ import numpy as np
 from joblib import Parallel, delayed
 import datetime
 import sys
+from collections import Counter
 
 book = sys.argv[1]
 min_projection = int(sys.argv[2])
@@ -204,6 +205,8 @@ def total_lineup_all(combo, key):
 		position_dict['PF'][pf[0]][key] + \
 		position_dict['PF'][pf[1]][key], 2)
 
+column_names = ['C', 'PG1', 'PG2', 'SG1', 'SG2', 'SF1', 'SF2', 'PF1', 'PF2']
+
 def create_total_dict(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_clean, pf_dict_clean):
         return {(c_dict_clean[c]['players'], \
                         pg_dict_clean[pg]['players'], \
@@ -262,10 +265,24 @@ def main():
 
         total_dict = {y['projection']: y['players'] for x,y in total_dict.items()}
         df = pd.DataFrame.from_dict(total_dict, orient='index').sort_index(ascending=False)
-	return df
+	df = pd.concat([df, df], axis=1)
+	dup_column_names = [x + '_2' for x in column_names]
+	df.columns = column_names + dup_column_names
+	df.replace({dup_column_names[x]: {item[0]: item[1]['Team'] \
+		for item in all_plyr_dict.items()} \
+			for x in range(len(dup_column_names))}, inplace=True)
+	df = df.reset_index()
+	team_count_dict = df[dup_column_names].to_dict(orient='index')
+	team_count_dict = {key: max(Counter([team for team in team_count_dict[key].values()]).values()) \
+				for key in team_count_dict.keys()}
+	df['Team Count'] = pd.DataFrame.from_dict(team_count_dict, orient='index')
+	df = df[df['Team Count'] <= 4].set_index('index')[column_names + ['Team Count']]
+	return df, team_count_dict
 
 if __name__=="__main__":
         start_time = datetime.datetime.now()
-	df = main()
+	df,new_dict = main()
 	print (df.head(15))
+	print (df.columns)
+	print (new_dict.keys(), new_dict)
 	print (datetime.datetime.now() - start_time)
