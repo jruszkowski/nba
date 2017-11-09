@@ -42,6 +42,7 @@ team_abbr = {
     'Miami': 'MIA',
     'Phoenix': 'PHX',
     'Minnesota': 'MIN',
+    'Houston': 'HOU',
     'Golden State': 'GS'}
 
 odd_dict = {}
