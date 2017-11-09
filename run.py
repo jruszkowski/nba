@@ -277,12 +277,10 @@ def main():
 				for key in team_count_dict.keys()}
 	df['Team Count'] = pd.DataFrame.from_dict(team_count_dict, orient='index')
 	df = df[df['Team Count'] <= 4].set_index('index')[column_names + ['Team Count']]
-	return df, team_count_dict
+	return df 
 
 if __name__=="__main__":
         start_time = datetime.datetime.now()
-	df,new_dict = main()
+	df = main()
 	print (df.head(15))
-	print (df.columns)
-	print (new_dict.keys(), new_dict)
 	print (datetime.datetime.now() - start_time)
