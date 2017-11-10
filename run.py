@@ -8,8 +8,99 @@ import datetime
 import sys
 from collections import Counter
 
+pages = [
+    'http://www.espn.com/nba/team/stats/_/name/atl',
+    'http://www.espn.com/nba/team/stats/_/name/bos',
+    'http://www.espn.com/nba/team/stats/_/name/bkn',
+    'http://www.espn.com/nba/team/stats/_/name/cha',
+    'http://www.espn.com/nba/team/stats/_/name/chi',
+    'http://www.espn.com/nba/team/stats/_/name/cle',
+    'http://www.espn.com/nba/team/stats/_/name/dal',
+    'http://www.espn.com/nba/team/stats/_/name/den',
+    'http://www.espn.com/nba/team/stats/_/name/det',
+    'http://www.espn.com/nba/team/stats/_/name/gs',
+    'http://www.espn.com/nba/team/stats/_/name/hou',
+    'http://www.espn.com/nba/team/stats/_/name/ind',
+    'http://www.espn.com/nba/team/stats/_/name/lac',
+    'http://www.espn.com/nba/team/stats/_/name/lal',
+    'http://www.espn.com/nba/team/stats/_/name/mem',
+    'http://www.espn.com/nba/team/stats/_/name/mia',
+    'http://www.espn.com/nba/team/stats/_/name/mil',
+    'http://www.espn.com/nba/team/stats/_/name/min',
+    'http://www.espn.com/nba/team/stats/_/name/no',
+    'http://www.espn.com/nba/team/stats/_/name/ny',
+    'http://www.espn.com/nba/team/stats/_/name/okc',
+    'http://www.espn.com/nba/team/stats/_/name/orl',
+    'http://www.espn.com/nba/team/stats/_/name/phi',
+    'http://www.espn.com/nba/team/stats/_/name/phx',
+    'http://www.espn.com/nba/team/stats/_/name/por',
+    'http://www.espn.com/nba/team/stats/_/name/sac',
+    'http://www.espn.com/nba/team/stats/_/name/sa',
+    'http://www.espn.com/nba/team/stats/_/name/tor',
+    'http://www.espn.com/nba/team/stats/_/name/utah',
+    'http://www.espn.com/nba/team/stats/_/name/wsh']
+
+plyr_dict = {p.split('/')[-1].upper(): {} for p in pages}
+total_team_dict = {x: {p.split('/')[-1].upper(): {} for p in pages} for x in ['Game', 'Shooting']}
+
+
+def convert_totals(s):
+    if s == '--':
+        return 0
+    return float(s)
+
+
+for base_page in pages:
+    team = base_page.split('/')[-1].upper()
+    plyr_dict[team] = {'Game': {}, 'Shooting': {}}
+    total_team_dict[team] = {'Game': {}, 'Shooting': {}}
+    get_page = urllib2.urlopen(base_page)
+    soup = BeautifulSoup(get_page, 'html.parser')
+    rows = soup.find_all('tr', {"class": ["oddrow", "evenrow"]})
+    for row in rows:
+        if len(row) == 15:
+            if row.a.get_text() in plyr_dict[team]['Game']:
+                plyr_dict[team]['Shooting'][row.a.get_text()] = [float(td.string) for td in row.find_all('td') if
+                                                           td.string != None]
+            else:
+                plyr_dict[team]['Game'][row.a.get_text()] = [float(td.string) for td in row.find_all('td') if
+                                                           td.string != None]
+
+    rows = soup.find_all('tr', {"class": ["total"]})
+    for row in rows:
+        if len(row) == 15:
+            if len(total_team_dict['Game'][team]) > 0:
+                total_team_dict['Shooting'][team] = [convert_totals(td.string) for td in row.find_all('td') if td.string!='Totals']
+            else:
+                total_team_dict['Game'][team] = [convert_totals(td.string) for td in row.find_all('td') if td.string!='Totals']
+
+game_columns = ['GP', 'GS', 'MIN', 'PPG', 'OFFR', 'DEFR', 'RPG', 'APG', 'SPG', 'BPG', 'TPG', 'FPG', 'A/TO', 'PER']
+shooting_columns = ['FGM', 'FGA', 'FG',	'3PM', '3PA', '3P',	'FTM', 'FTA', 'FT',	'2PM', '2PA', '2P', 'PPS', 'AFG']
+
+scoring = {
+    'RPG': 1.2,
+    'APG': 1.5,
+    'BPG': 3,
+    'SPG': 3,
+    'TPG': -1,
+    'PPG': 1,
+    }
+
+
+df_total = pd.DataFrame.from_dict(total_team_dict['Game']).T
+df_stats = pd.DataFrame(columns=[list(range(14))])
+for team in plyr_dict.keys():
+    df_stats = pd.concat([df_stats, pd.DataFrame.from_dict(plyr_dict[team]['Game'], orient='index')])
+
+df_stats.columns = game_columns
+df_total.columns = game_columns
+team_total_dict = df_total['PPG'].to_dict()
+df_stats = df_stats[[key for key in scoring.keys()]]
+
+
 book = sys.argv[1]
 min_projection = int(sys.argv[2])
+projection_method = int(sys.argv[3])
 
 base_page = 'http://www.espn.com/nba/lines'
 get_page = urllib2.urlopen(base_page)
@@ -18,6 +109,7 @@ soup = BeautifulSoup(get_page, 'html.parser')
 team_abbr = {
     'Milwaukee': 'MIL',
     'Cleveland': 'CLE',
+    'Atlanta': 'ATL',
     'New Orleans': 'NO',
     'Indiana': 'IND',
     'Dallas': 'DAL',
@@ -114,9 +206,24 @@ df = df.reset_index().set_index('Team')
 df['Team Total'] = df_grouped
 df['Percent of Total'] = df['FPPG'] / df['Team Total']
 df['Projected Score'] = pd.DataFrame.from_dict(team_dict, orient='index')
+df['Average Score'] = pd.DataFrame.from_dict(team_total_dict, orient='index')
+df['Factor'] = df['Projected Score'] / df['Average Score']
 df['Projection'] = df['Percent of Total'] * df['Projected Score']
 df = df.reset_index().set_index('Nickname')
-df = df[df['Projection'] > min_projection]
+df = pd.merge(df, df_stats, how='left', left_index=True, right_index=True)
+df['Stat Projection'] = (df['RPG'] * scoring['RPG'] * df['Factor']
+                    + df['APG'] * scoring['APG'] * df['Factor']
+                    + df['BPG'] * scoring['BPG']
+                    + df['SPG'] * scoring['SPG']
+                    + df['TPG'] * scoring['TPG']
+                    + df['PPG'] * scoring['PPG'] * df['Factor'])
+
+if projection_method == 1:
+	df = df[df['Projection'] > min_projection]
+elif projection_method == 2:
+	df = df[df['Stat Projection'] > min_projection]
+	df['Projection'] = df['Stat Projection']
+
 
 all_plyr_dict = df.to_dict(orient='index')
 position_dict = df.groupby(['Position']).apply(lambda x: x.to_dict(orient='index'))
