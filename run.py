@@ -99,7 +99,7 @@ df_stats = df_stats[[key for key in scoring.keys()]]
 
 
 book = sys.argv[1]
-min_projection = int(sys.argv[2])
+min_projection = float(sys.argv[2])
 projection_method = int(sys.argv[3])
 
 base_page = 'http://www.espn.com/nba/lines'
@@ -168,7 +168,8 @@ for row in rows:
                     elif len(str(br.previousSibling).split(':')) == 2 and no_name_away:
                         team_list_away.append(str(br.previousSibling).split(':')[0])
                         no_name_away = False
-            over_under_list.append(td.string)
+            if td.string != 'EVEN':
+            	over_under_list.append(td.string)
 
 
 odds_list_home = [float(x) for x in odds_list_home]
@@ -217,12 +218,15 @@ df['Stat Projection'] = (df['RPG'] * scoring['RPG'] * df['Factor']
                     + df['SPG'] * scoring['SPG']
                     + df['TPG'] * scoring['TPG']
                     + df['PPG'] * scoring['PPG'] * df['Factor'])
+df['Stat Projection'] = df['Stat Projection'].fillna(0)
 
 if projection_method == 1:
-	df = df[df['Projection'] > min_projection]
+	df['Value'] = df['Salary'] / df['Projection']
+	df = df[df['Value'] < min_projection]
 elif projection_method == 2:
-	df = df[df['Stat Projection'] > min_projection]
 	df['Projection'] = df['Stat Projection']
+	df['Value'] = df['Salary'] / df['Projection']
+	df = df[df['Value'] < min_projection]
 
 
 all_plyr_dict = df.to_dict(orient='index')
