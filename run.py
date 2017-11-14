@@ -362,6 +362,7 @@ def main():
 				
 	c_list = [(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_clean, pf_dict_clean) for c in c_dict_clean.keys()]
 	results = Parallel(n_jobs=-1)(delayed(create_total_dict)(*i) for i in c_list)
+	print ('results count ', len(results))
 	total_dict = {}
 	for y in results:
 		for key in y.keys():
@@ -369,7 +370,7 @@ def main():
 			total_dict[key]['players'] = []
 			total_dict[key]['projection'] = y[key]['projection']
 
-	print len(total_dict)
+	print (len(total_dict))
         for x in total_dict.keys():
                 for plyr_tuple in x:
                         total_dict[x]['players'] += list(plyr_tuple)
