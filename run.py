@@ -296,25 +296,14 @@ def clean_dict(dict_zeros):
 			del dict_zeros[key]
 	return dict_zeros
 
+
 def return_df():
 	return df
 
-def total_lineup_all(combo, key):
-	c = combo[0]
-	pg = combo[1]
-	sg = combo[2]
-	sf = combo[3]
-	pf = combo[4]
 
-	return round(position_dict['C'][c[0]][key] + \
-		position_dict['PG'][pg[0]][key] + \
-		position_dict['PG'][pg[1]][key] + \
-		position_dict['SG'][sg[0]][key] + \
-		position_dict['SG'][sg[1]][key] + \
-		position_dict['SF'][sf[0]][key] + \
-		position_dict['SF'][sf[1]][key] + \
-		position_dict['PF'][pf[0]][key] + \
-		position_dict['PF'][pf[1]][key], 2)
+def total_lineup_all(combo, key):
+	return sum([all_plyr_dict[name][key] for name in [item for sublist in combo for item in sublist]])
+
 
 column_names = ['C', 'PG1', 'PG2', 'SG1', 'SG2', 'SF1', 'SF2', 'PF1', 'PF2']
 
@@ -355,6 +344,7 @@ def main():
         c_dict_clean = clean_dict(c_dict)
 
 	c_list = [(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_clean, pf_dict_clean) for c in c_dict_clean.keys()]
+	print (len(c_list))
 
 	results = Parallel(n_jobs=-1)(delayed(create_total_dict)(*i) for i in c_list)
 
