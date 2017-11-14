@@ -354,15 +354,11 @@ def main():
         pf_dict_clean = clean_dict(pf_dict)
         c_dict_clean = clean_dict(c_dict)
 
-	dict_parameters = [c_dict_clean,
-				pg_dict_clean,
-				sg_dict_clean,
-				sf_dict_clean,
-				pf_dict_clean]
-				
 	c_list = [(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_clean, pf_dict_clean) for c in c_dict_clean.keys()]
+
 	results = Parallel(n_jobs=-1)(delayed(create_total_dict)(*i) for i in c_list)
-	print ('results count ', len(results))
+
+	print (len(results))
 	total_dict = {}
 	for y in results:
 		for key in y.keys():
