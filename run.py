@@ -228,6 +228,14 @@ elif projection_method == 2:
 	df = df[df['Value'] < min_projection]
 
 
+date_label = datetime.datetime.now()
+df.to_csv('projection_data/output' 
+	+ str(date_label.year) 
+	+ '_'
+	+ date_format(str(date_label.month))
+	+ '_'
+	+ date_format(str(date_label.day))
+	+ '.csv')
 all_plyr_dict = df.to_dict(orient='index')
 position_dict = df.groupby(['Position']).apply(lambda x: x.to_dict(orient='index'))
 
@@ -381,14 +389,6 @@ def main():
 				for key in team_count_dict.keys()}
 	df['Team Count'] = pd.DataFrame.from_dict(team_count_dict, orient='index')
 	df = df[df['Team Count'] <= 4].set_index('index')
-	date_label = datetime.datetime.now()
-	df.to_csv('projection_data/output' 
-		+ str(date_label.year) 
-		+ '_'
-		+ date_format(str(date_label.month))
-		+ '_'
-		+ date_format(str(date_label.day))
-		+ '.csv')
 	df = df[column_names + ['Team Count']]
 	return df 
 
