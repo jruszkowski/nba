@@ -228,6 +228,12 @@ elif projection_method == 2:
 	df = df[df['Value'] < min_projection]
 
 
+def date_format(s):
+	if len(s) == 2:
+		return s
+	return '0' + s
+
+
 date_label = datetime.datetime.now()
 df.to_csv('projection_data/output' 
 	+ str(date_label.year) 
@@ -341,11 +347,36 @@ def create_total_dict(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_cle
                                         pf_dict_clean[pf]['players']), 'Salary') <= 60000}
 
 
-def date_format(s):
-	if len(s) == 2:
-		return s
-	return '0' + s
 
+
+def create_df(td):
+	total_dict = {}
+	for key in td.keys():
+		total_dict[key] = {}
+		total_dict[key]['players'] = []
+		total_dict[key]['projection'] = td[key]['projection']
+
+        print (len(total_dict))
+        for x in total_dict.keys():
+                for plyr_tuple in x:
+                        total_dict[x]['players'] += list(plyr_tuple)
+
+        total_dict = {y['projection']: y['players'] for x,y in total_dict.items()}
+        df = pd.DataFrame.from_dict(total_dict, orient='index').sort_index(ascending=False)
+        df = pd.concat([df, df], axis=1)
+        dup_column_names = [x + '_2' for x in column_names]
+        df.columns = column_names + dup_column_names
+        df.replace({dup_column_names[x]: {item[0]: item[1]['Team'] \
+                for item in all_plyr_dict.items()} \
+                        for x in range(len(dup_column_names))}, inplace=True)
+        df = df.reset_index()
+        team_count_dict = df[dup_column_names].to_dict(orient='index')
+        team_count_dict = {key: max(Counter([team for team in team_count_dict[key].values()]).values()) \
+                                for key in team_count_dict.keys()}
+        df['Team Count'] = pd.DataFrame.from_dict(team_count_dict, orient='index')
+        df = df[df['Team Count'] <= 4].set_index('index')
+        df = df[column_names + ['Team Count']]
+        return df
 
 def main():
 	for i in combos.items():
@@ -363,33 +394,8 @@ def main():
 	results = Parallel(n_jobs=-1)(delayed(create_total_dict)(*i) for i in c_list)
 
 	print (len(results))
-	total_dict = {}
-	for y in results:
-		for key in y.keys():
-			total_dict[key] = {} 
-			total_dict[key]['players'] = []
-			total_dict[key]['projection'] = y[key]['projection']
-
-	print (len(total_dict))
-        for x in total_dict.keys():
-                for plyr_tuple in x:
-                        total_dict[x]['players'] += list(plyr_tuple)
-
-        total_dict = {y['projection']: y['players'] for x,y in total_dict.items()}
-        df = pd.DataFrame.from_dict(total_dict, orient='index').sort_index(ascending=False)
-	df = pd.concat([df, df], axis=1)
-	dup_column_names = [x + '_2' for x in column_names]
-	df.columns = column_names + dup_column_names
-	df.replace({dup_column_names[x]: {item[0]: item[1]['Team'] \
-		for item in all_plyr_dict.items()} \
-			for x in range(len(dup_column_names))}, inplace=True)
-	df = df.reset_index()
-	team_count_dict = df[dup_column_names].to_dict(orient='index')
-	team_count_dict = {key: max(Counter([team for team in team_count_dict[key].values()]).values()) \
-				for key in team_count_dict.keys()}
-	df['Team Count'] = pd.DataFrame.from_dict(team_count_dict, orient='index')
-	df = df[df['Team Count'] <= 4].set_index('index')
-	df = df[column_names + ['Team Count']]
+	results = Parallel(n_jobs=-1)(delayed(create_df)(i) for i in results)
+	df = pd.concat(results)	
 	return df 
 
 if __name__=="__main__":
