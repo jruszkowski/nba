@@ -221,8 +221,7 @@ df['Stat Projection'] = (df['RPG'] * scoring['RPG'] * df['Factor']
 df['Stat Projection'] = df['Stat Projection'].fillna(0)
 
 if projection_method == 1:
-	df['Value'] = df['Salary'] / df['Projection']
-	df = df[df['Value'] < min_projection]
+	df = df[df['Projection'] > min_projection]
 elif projection_method == 2:
 	df['Projection'] = df['Stat Projection']
 	df['Value'] = df['Salary'] / df['Projection']
@@ -333,6 +332,13 @@ def create_total_dict(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_cle
                                         sf_dict_clean[sf]['players'], \
                                         pf_dict_clean[pf]['players']), 'Salary') <= 60000}
 
+
+def date_format(s):
+	if len(s) == 2:
+		return s
+	return '0' + s
+
+
 def main():
 	for i in combos.items():
 		create_combo_dictionaries(i)
@@ -374,7 +380,16 @@ def main():
 	team_count_dict = {key: max(Counter([team for team in team_count_dict[key].values()]).values()) \
 				for key in team_count_dict.keys()}
 	df['Team Count'] = pd.DataFrame.from_dict(team_count_dict, orient='index')
-	df = df[df['Team Count'] <= 4].set_index('index')[column_names + ['Team Count']]
+	df = df[df['Team Count'] <= 4].set_index('index')
+	date_label = datetime.datetime.now()
+	df.to_csv('projection_data/output' 
+		+ str(date_label.year) 
+		+ '_'
+		+ date_format(str(date_label.month))
+		+ '_'
+		+ date_format(str(date_label.day))
+		+ '.csv')
+	df = df[column_names + ['Team Count']]
 	return df 
 
 if __name__=="__main__":
