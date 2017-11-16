@@ -395,7 +395,7 @@ def main():
 
 	print (len(results))
 	results = Parallel(n_jobs=-1)(delayed(create_df)(i) for i in results)
-	df = pd.concat(results)	
+	df = pd.concat(results).sort_index(ascending=False)
 	return df 
 
 if __name__=="__main__":
