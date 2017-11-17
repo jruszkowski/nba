@@ -328,7 +328,7 @@ def total_lineup_all(combo, key):
 column_names = ['C', 'PG1', 'PG2', 'SG1', 'SG2', 'SF1', 'SF2', 'PF1', 'PF2']
 
 def create_total_dict(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_clean, pf_dict_clean):
-        return {(c_dict_clean[c]['players'], \
+        td = {(c_dict_clean[c]['players'], \
                         pg_dict_clean[pg]['players'], \
                         sg_dict_clean[sg]['players'], \
                         sf_dict_clean[sf]['players'], \
@@ -355,8 +355,6 @@ def create_total_dict(c, c_dict_clean, pg_dict_clean, sg_dict_clean, sf_dict_cle
 
 
 
-
-def create_df(td):
 	total_dict = {}
 	for key in td.keys():
 		total_dict[key] = {}
@@ -382,8 +380,8 @@ def create_df(td):
                                 for key in team_count_dict.keys()}
         df['Team Count'] = pd.DataFrame.from_dict(team_count_dict, orient='index')
         df = df[df['Team Count'] <= 4].set_index('index')
-        df = df[column_names + ['Team Count']]
-        return df
+        df = df[column_names + ['Team Count']].sort_index(ascending = False)
+        return df.head(1)
 
 def main():
 	for i in combos.items():
@@ -399,9 +397,6 @@ def main():
 	print (len(c_list))
 
 	results = Parallel(n_jobs=-1)(delayed(create_total_dict)(*i) for i in c_list)
-
-	print (len(results))
-	results = Parallel(n_jobs=-1)(delayed(create_df)(i) for i in results)
 	df = pd.concat(results).sort_index(ascending=False)
 	return df 
 
