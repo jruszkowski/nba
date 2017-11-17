@@ -157,19 +157,26 @@ for row in rows:
             if td.string == book:
                 no_name_home = True
                 no_name_away = True
+                even_odds = True
                 for br in row.find_all('br'):
                     if len(str(br.nextSibling).split(':')) == 1:
                         odds_list_home += str(br.nextSibling).split(':')
-                    elif len(str(br.nextSibling).split(':')) == 2 and no_name_home:
+                    elif len(str(br.nextSibling).split(':')) == 2 and no_name_home and len(str(br.nextSibling).split(':')[0]) > 1:
                         team_list_home.append(str(br.nextSibling).split(':')[0])
                         no_name_home = False
                     if len(str(br.previousSibling).split(':')) == 1:
                         odds_list_away += str(br.previousSibling).split(':')
-                    elif len(str(br.previousSibling).split(':')) == 2 and no_name_away:
+                    elif len(str(br.previousSibling).split(':')) == 2 \
+                            and no_name_away \
+                            and len(str(br.previousSibling).split(':')[0]) > 1:
                         team_list_away.append(str(br.previousSibling).split(':')[0])
                         no_name_away = False
             if td.string != 'EVEN':
             	over_under_list.append(td.string)
+            if td.string == 'EVEN' and even_odds:
+                odds_list_home += ['0']
+                odds_list_away += ['0']
+                even_odds = False
 
 
 odds_list_home = [float(x) for x in odds_list_home]
