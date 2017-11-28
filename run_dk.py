@@ -274,11 +274,12 @@ df.to_csv('projection_data/dk_output'
 all_plyr_dict = df.to_dict(orient='index')
 position_dict = df.groupby(['Position']).apply(lambda x: x.to_dict(orient='index'))
 
-multiple_position = {'C': 'PF/C',
-					 'PF': 'PF/C',
-					 'PG': ('PG/SF', 'PG/SG'),
-					 'SF': ('PG/SF', 'SF/PF', 'SG/SF'),
-					 'SG': ('PG/SG', 'SG/SF')}
+multiple_position = {
+		'C': 'PF/C',
+		 'PF': 'PF/C',
+		 'PG': ('PG/SF', 'PG/SG'),
+		 'SF': ('PG/SF', 'SF/PF', 'SG/SF'),
+		 'SG': ('PG/SG', 'SG/SF')}
 
 position_dict_all = {}
 position_dict_all['C'] = deepcopy(position_dict['C'])
@@ -298,19 +299,6 @@ for key in multiple_position.keys():
 					position_dict_all[key][item[0]] = item[1]
 
 
-def add_func(plyrs, key):
-	return sum([all_plyr_dict[x][key] for x in plyrs])
-
-combos = {'PG': 'PG',
-		  'SG': 'SG',
-		  'SF': 'SF',
-		  'PF': 'PF',
-		  'C': 'C',
-		  'G': ('PG', 'SG'),
-		  'F': ('SF', 'PF'),
-		  'Util': ('PG', 'SG', 'SF', 'PF', 'C')}
-
-
 position_dict_util = {}
 position_dict_util['G'] = deepcopy(position_dict_all['PG'])
 for item in position_dict_all['SG'].items():
@@ -324,13 +312,32 @@ for item in position_dict_all['SF'].items():
 
 position_dict_util['Util'] = deepcopy(all_plyr_dict)
 
-plyr_3_set = (i for i in product(*[position_dict_util[key].keys() for key in position_dict_util.keys()]) if len(set(i)) == 3)
-plyr_5_set = (i for i in product(*[position_dict_all[key].keys() for key in position_dict_all.keys()]) if len(set(i)) == 5)
-plyr_8_set = ((sum([all_plyr_dict[z]['Stat Projection'] for z in (x + y)]), x + y) for x,y in product(*[plyr_5_set, plyr_3_set])
-              if len(set(x + y)) == 8
-              and 49000 < sum([all_plyr_dict[z]['Salary'] for z in (x + y)]) <= 50000)
+def main(c):
+	print (c)
+	plyr_3_set = (i for i in product(*[position_dict_util[key].keys() 
+			for key in position_dict_util.keys()]) 
+			if len(set(i)) == 3)
+	plyr_5_set = (i for i in product(*[position_dict_all[key].keys() 
+			for key in position_dict_all.keys() 
+			if key != 'C']) 
+			if len(set(i)) == 4)
+	plyr_8_set = ((sum([all_plyr_dict[z]['Stat Projection'] 
+			for z in ((c,) + x + y)]), (c,) + x + y) 
+			for x,y in product(*[plyr_5_set, plyr_3_set])
+		      if len(set((c,) + x + y)) == 8
+		      and 49000 < sum([all_plyr_dict[z]['Salary'] for z in ((c,) + x + y)]) <= 50000)
 
-team_list = {i[0]: [x for x in i[1]] for i in plyr_8_set}
-df = pd.DataFrame.from_dict(team_list, orient='index')
-df = df.sort_index(ascending=False)
-print (len(df), df.head())
+	team_list = {i[0]: [x for x in i[1]] for i in plyr_8_set}
+	df = pd.DataFrame.from_dict(team_list, orient='index')
+	df = df.sort_index(ascending=False)
+	print df.head(1)
+	return df.head(1)
+
+
+if __name__=="__main__":
+        start_time = datetime.datetime.now()
+        results = Parallel(n_jobs=-1)(delayed(main)(c) for c in position_dict_all['C'].keys())
+        df = pd.concat(results).sort_index(ascending=False)
+        print (df)
+	df.to_csv('dk_lineup.csv')
+        print (datetime.datetime.now() - start_time)	
