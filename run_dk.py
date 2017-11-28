@@ -77,7 +77,7 @@ for base_page in pages:
 				total_team_dict['Game'][team] = [convert_totals(td.string) for td in row.find_all('td') if td.string!='Totals']
 
 game_columns = ['GP', 'GS', 'MIN', 'PPG', 'OFFR', 'DEFR', 'RPG', 'APG', 'SPG', 'BPG', 'TPG', 'FPG', 'A/TO', 'PER']
-shooting_columns = ['FGM', 'FGA', 'FG',	'3PM', '3PA', '3P',	'FTM', 'FTA', 'FT',	'2PM', '2PA', '2P', 'PPS', 'AFG']
+shooting_columns = ['FGM', 'FGA', 'FG',	'3PM', '3PA', '3P', 'FTM', 'FTA', 'FT',	'2PM', '2PA', '2P', 'PPS', 'AFG']
 
 scoring = {
 	'RPG': 1.25,
@@ -220,11 +220,20 @@ for item in odd_dict.items():
 
 assert sum(over_under_wynn) / 2 == sum([x for x in team_dict.values()])
 
+dk_name_dict = {'UTAH': 'UTA',
+                'PHX': 'PHO',
+                'WSH': 'WAS'}
+
 df = pd.read_csv('draftkings.csv').set_index('Name')
 df_grouped = df.groupby('teamAbbrev')['AvgPointsPerGame'].sum()
 df = df.reset_index().set_index('teamAbbrev')
 df['Team Total'] = df_grouped
 df['Percent of Total'] = df['AvgPointsPerGame'] / df['Team Total']
+for key in dk_name_dict.keys():
+    if key in team_dict.keys():
+        team_dict[dk_name_dict[key]] = team_dict.pop(key)
+    if key in team_total_dict.keys():
+        team_total_dict[dk_name_dict[key]] = team_total_dict.pop(key)
 df['Projected Score'] = pd.DataFrame.from_dict(team_dict, orient='index')
 df['Average Score'] = pd.DataFrame.from_dict(team_total_dict, orient='index')
 df['Factor'] = df['Projected Score'] / df['Average Score']
@@ -279,13 +288,14 @@ position_dict_all['SF'] = deepcopy(position_dict['SF'])
 position_dict_all['PF'] = deepcopy(position_dict['PF'])
 
 for key in multiple_position.keys():
-	if isinstance(multiple_position[key], str):
+	if isinstance(multiple_position[key], str) and multiple_position[key] in position_dict.keys():
 		for item in position_dict[multiple_position[key]].items():
 			position_dict_all[key][item[0]] = item[1]
 	if isinstance(multiple_position[key], tuple):
 		for sub_type in multiple_position[key]:
-			for item in position_dict[sub_type].items():
-				position_dict_all[key][item[0]] = item[1]
+			if sub_type in position_dict.keys():
+				for item in position_dict[sub_type].items():
+					position_dict_all[key][item[0]] = item[1]
 
 
 def add_func(plyrs, key):
@@ -315,18 +325,12 @@ for item in position_dict_all['SF'].items():
 position_dict_util['Util'] = deepcopy(all_plyr_dict)
 
 plyr_3_set = (i for i in product(*[position_dict_util[key].keys() for key in position_dict_util.keys()]) if len(set(i)) == 3)
-plyr_5_set = (i for i in product(*[position_dict_all[key].keys()
-                                   for key in position_dict_all.keys()])
-              if len(set(i)) == 5
-              and sum([all_plyr_dict[x]['Salary'] for x in i]) <= 41000)
-
-plyr_8_set = (sum([all_plyr_dict[z]['Stat Projection'] for z in x + y]), x + y for x in plyr_5_set for y in plyr_3_set
+plyr_5_set = (i for i in product(*[position_dict_all[key].keys() for key in position_dict_all.keys()]) if len(set(i)) == 5)
+plyr_8_set = ((sum([all_plyr_dict[z]['Stat Projection'] for z in (x + y)]), x + y) for x,y in product(*[plyr_5_set, plyr_3_set])
               if len(set(x + y)) == 8
-              and 49500 < sum([all_plyr_dict[z]['Salary'] for z in x + y]) <= 50000}
+              and 49000 < sum([all_plyr_dict[z]['Salary'] for z in (x + y)]) <= 50000)
 
-from operator import itemgetter
-sorted_team = islice(sorted(plyr_8_set, reverse=True, key=itemgetter(1)), 3)
-
-print sorted_team
-
-
+team_list = {i[0]: [x for x in i[1]] for i in plyr_8_set}
+df = pd.DataFrame.from_dict(team_list, orient='index')
+df = df.sort_index(ascending=False)
+print (len(df), df.head())
