@@ -273,6 +273,7 @@ df.to_csv('projection_data/dk_output'
 	+ '.csv')
 all_plyr_dict = df.to_dict(orient='index')
 position_dict = df.groupby(['Position']).apply(lambda x: x.to_dict(orient='index'))
+plyr_position = {item[0]: item[1]['Position'] for item in all_plyr_dict.items()}
 
 multiple_position = {
 		'C': 'PF/C',
@@ -285,7 +286,10 @@ position_dict_all = {}
 position_dict_all['C'] = deepcopy(position_dict['C'])
 position_dict_all['PG'] = deepcopy(position_dict['PG'])
 position_dict_all['SG'] = deepcopy(position_dict['SG'])
-position_dict_all['SF'] = deepcopy(position_dict['SF'])
+try:
+	position_dict_all['SF'] = deepcopy(position_dict['SF'])
+except:
+	position_dict_all['SF'] = {}
 position_dict_all['PF'] = deepcopy(position_dict['PF'])
 
 for key in multiple_position.keys():
@@ -314,25 +318,40 @@ position_dict_util['Util'] = deepcopy(all_plyr_dict)
 
 def main(c):
 	print (c)
-	plyr_3_set = (i for i in product(*[position_dict_util[key].keys() 
-			for key in position_dict_util.keys()]) 
-			if len(set(i)) == 3)
-	plyr_5_set = (i for i in product(*[position_dict_all[key].keys() 
-			for key in position_dict_all.keys() 
-			if key != 'C']) 
-			if len(set(i)) == 4)
 	plyr_8_set = ((sum([all_plyr_dict[z]['Stat Projection'] 
-			for z in ((c,) + x + y)]), (c,) + x + y) 
-			for x,y in product(*[plyr_5_set, plyr_3_set])
-		      if len(set((c,) + x + y)) == 8
-		      and 49000 < sum([all_plyr_dict[z]['Salary'] for z in ((c,) + x + y)]) <= 50000)
+			for z in ((c,) + x)]), (c,) + x) 
+			for x in combinations(all_plyr_dict.keys(), 7)
+		      if len(set((c,) + x)) == 8
+		      and 49500 < sum([all_plyr_dict[z]['Salary'] for z in ((c,) + x)]) <= 50000)
 
-	team_list = {i[0]: [x for x in i[1]] for i in plyr_8_set}
-	df = pd.DataFrame.from_dict(team_list, orient='index')
+	df = pd.DataFrame.from_dict({i[0]: [x for x in i[1]] for i in plyr_8_set}, orient='index')
 	df = df.sort_index(ascending=False)
+        df = df.reset_index()
+	df[21] = df[1]
+	df[22] = df[2]
+	df[23] = df[3]
+	df[24] = df[4]
+	df[25] = df[5]
+	df[26] = df[6]
+	df[27] = df[7]
+	df.replace({    21: plyr_position, 
+			22: plyr_position, 
+			23: plyr_position, 
+			24: plyr_position, 
+			25: plyr_position, 
+			26: plyr_position, 
+			27: plyr_position})
+		
+	print df[21].head()
+        pos_count_dict = df[[21, 22, 23, 24, 25, 26, 27]].to_dict(orient='index')
+        pos_count_dict = {key: Counter([pos for pos in pos_count_dict[key].values()]) for key in pos_count_dict.keys()}
+	print pos_count_dict
+        df['Team Count'] = pd.DataFrame.from_dict(team_count_dict, orient='index')
+        df = df[df['Team Count'] <= 4].set_index('index')
+        df = df[column_names + ['Team Count']].sort_index(ascending = False)
+
 	print df.head(1)
 	return df.head(1)
-
 
 if __name__=="__main__":
         start_time = datetime.datetime.now()
